@@ -55,7 +55,7 @@ README ที่ AI เขียนมักออกมาเป็นสอง
 
 ทุกภาพข้างล่างเป็นลิงก์จริงที่ผ่าน `check_images.py` แล้ว ตัวเลขดาวและ fork ในแถบแรกมาจาก repo นี้ ส่วนกราฟดาวใช้ repo ของ HyperWeave เป็นตัวอย่างเพราะ repo นี้ยังไม่มีดาวพอจะวาดเส้น
 
-<details>
+<details open>
 <summary>แถบข้อมูล ป้าย ไอคอน การ์ด กราฟ</summary>
 
 <br/>
@@ -86,7 +86,7 @@ README ที่ AI เขียนมักออกมาเป็นสอง
 
 </details>
 
-<details>
+<details open>
 <summary>เส้นคั่นของแต่ละธีม</summary>
 
 <br/>
@@ -101,7 +101,7 @@ README ที่ AI เขียนมักออกมาเป็นสอง
 
 </details>
 
-<details>
+<details open>
 <summary>แผนภาพ 8 แบบ กับ preset 2 แบบ</summary>
 
 <br/>
