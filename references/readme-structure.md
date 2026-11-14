@@ -81,6 +81,16 @@ Tiny does not mean bare: a 30-second try-it block and a real limits note still a
 - Paragraphs under about 4 lines; one blank line between blocks; Thai and English words separated by a space.
 - No section left empty or holding only a placeholder.
 
+## Repos that are mostly stubs
+
+When the code is placeholders (empty handlers, comments only, a dependency never imported), keep the standard sections but tell the truth inside them instead of dropping the skeleton:
+
+- Title the feature section `ฟีเจอร์ที่วางแผนไว้` and say in the first line that the code does not run these yet.
+- Under `สถาปัตยกรรม` caption the diagram as the intended design, not what runs today.
+- Under `ทดสอบ` write what exists ("ยังไม่มีไฟล์ทดสอบ" even if CI runs a test command) and the command that is wired up, so the reader is not misled.
+- Put every verified gap (build breaks, unused dependency, missing entry file) in `ข้อจำกัดและสิ่งที่ยังไม่ได้ทำ`, not scattered through the page.
+- Use at most one warning alert near the top to say the project is early.
+
 ## Repo types
 
 Adjust, do not drop, the skeleton:

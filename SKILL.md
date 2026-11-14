@@ -69,6 +69,8 @@ Budget: tiny repo (a handful of files) 1–2 visuals, with a strip that doubles 
 
 **Critical:** `hw_compose` returns `url: https://hyperweave.app/v1/a/<sha256>`. In testing those URLs returned **HTTP 404** from the public site (they live only in the MCP server's local cache), and different genomes of the same strip even produced the same id. Never put them in a README. Instead build **stateless URLs from the public URL grammar**, which load for anyone and encode everything in the link. Use `hw_compose`/`hw_validate` only to try a spec and read errors or the markdown shadow; the thing you embed is the grammar URL.
 
+Read [references/hyperweave-catalog.md](references/hyperweave-catalog.md) before you choose visuals. It maps each repo fact to the right visual (strip, badge with live data, star chart, profile card, icon, marquee, matrix, divider, and all twelve diagram topologies), gives the smallest working spec for each topology, the 59 diagram presets, the divider whitelist per genome, and the failures that render a normal-looking image so no checker catches them.
+
 URL patterns (base `https://hyperweave.app`; `{motion}` is `static` or one the genome allows; percent-encode path segments and query values, including `+` as `%2B` and Thai/UTF-8 text):
 
 | Visual | URL |
@@ -76,13 +78,17 @@ URL patterns (base `https://hyperweave.app`; `{motion}` is `static` or one the g
 | Badge | `/v1/badge/{title}/{value}/{genome}.{motion}?variant=...` |
 | Strip (hero / badge row) | `/v1/strip/{title}/{genome}.{motion}?value=KEY:val,KEY:val&variant=...&pair=...` |
 | Marquee | `/v1/marquee/{title}/{genome}.{motion}?variant=...` (also `data=` tokens) |
-| Divider (genome-specific) | `/v1/divider/{divider_variant}/{genome}.{motion}?variant=...` — only slugs in that genome's whitelist work |
+| Icon (a tool's logo) | `/v1/icon/{glyph}/primer.static?shape=circle\|square&variant=...` |
+| Profile card (a person's profile README) | `/v1/card/{username}/primer.static?variant=...` |
+| Star history (public GitHub repo with real stars) | `/v1/chart/stars/{owner}/{repo}/primer.static?variant=...` |
+| Diagram preset | `/v1/diagram/{preset}/primer.static?variant=...&face=light\|dark` (59 names in the catalog) |
+| Divider (genome-specific) | `/v1/divider/{slug}/{genome}.static` with `aura` (primer), `seam` or `sigil` (brutalist), `dissolve` (automata), `band` (chrome); other slugs return an error SVG |
 | Divider (generic, safest) | `/a/inneraura/dividers/{block\|current\|takeoff\|void\|zeropoint}` — works for any README but ignores your accent color |
 | Diagram | `/v1/diagram/custom/primer.static?variant=...&face=light\|dark&spec=<base64url JSON>` |
 | Matrix | `/v1/matrix/custom/primer.static?variant=...&face=light\|dark&spec=<base64url JSON>` |
 | Live data (public GitHub only) | strip/badge `data=gh:owner/repo.stars,gh:owner/repo.forks`; `pypi:`/`npm:`/`crates:` only if the package is truly published under that name |
 
-Genome facts (verified): `primer` (light, 8 variants noir/carbon/space/anvil/porcelain/cream/dusk/petrol; the only one that does diagrams; motions static, chromatic-pulse, corner-trace), `brutalist` (dark; variants like celadon, signal, ember, onyx; many motions), `chrome` (dark metallic; horizon, abyssal, lightning, graphite, moth), `automata` (dark cellular; 16 tones, give two tones as `variant=<tone1>&pair=<tone2>`; `pair=teal%2Bviolet`, `pair=teal,violet` and `pair=teal:violet` all return an error SVG; motions static, chromatic-pulse, rimrun, corner-trace). Dividers are whitelisted per genome: `primer` accepts `aura` (a `dissolve` call failed with `'dissolve' not in genome.dividers ['aura']`); for another genome read the error's allowed list. `hw_discover` with `what: "all"` can crash on Windows with a charmap error, so ask one selector at a time (`genomes`, `diagram`, `matrix`). The `glyphs` list can come back empty, so do not depend on a glyph id.
+Genome facts (verified): `primer` (light, 8 variants noir/carbon/space/anvil/porcelain/cream/dusk/petrol; the only one that does diagrams; motions static, chromatic-pulse, corner-trace), `brutalist` (dark; variants like celadon, signal, ember, onyx; many motions), `chrome` (dark metallic; horizon, abyssal, lightning, graphite, moth), `automata` (dark cellular; 16 tones, give two tones as `variant=<tone1>&pair=<tone2>`; `pair=teal%2Bviolet`, `pair=teal,violet` and `pair=teal:violet` all return an error SVG; motions static, chromatic-pulse, rimrun, corner-trace). Dividers are whitelisted per genome (`aura` primer, `seam` and `sigil` brutalist, `dissolve` automata, `band` chrome); a slug from another genome fails, and the error lists the allowed ones. `hw_discover` with `what: "all"` can crash on Windows with a charmap error, so ask one selector at a time (`genomes`, `diagram`, `matrix`). The `glyphs` list can come back empty, so do not depend on a glyph id.
 
 Building the `spec=` link (works for diagram and matrix; the decoded JSON must stay under 8 KB, so keep labels short):
 
@@ -96,16 +102,19 @@ b = base64.urlsafe_b64encode(json.dumps(spec, ensure_ascii=False).encode()).deco
 print("https://hyperweave.app/v1/diagram/custom/primer.static?variant=porcelain&face=light&spec=" + b)
 ```
 
-Thai text in labels renders correctly (tested). Generate each URL with a script like this rather than by hand; one typo in base64 means a broken image.
+Thai text in labels renders correctly (tested). Generate each URL with a script like this rather than by hand; one typo in base64 means a broken image. Edges are objects with `source` and `target` node ids (plus optional `label`, `relation`). To fetch a URL for checking, use Python (`urllib`) or pass the URL straight to `curl`; piping it through `xargs curl` can silently return nothing.
 
 **Diagram topology** (the picture should show the mechanism, not just list boxes):
 - one direction request → processing → storage: `pipeline`; one entry to many: `fanout`; many into one: `fanin`
-- layered app (UI / API / DB): `pipeline` with `"orientation": "vertical"` (the `stack` topology returns ERR_422 on the public server even though it is listed); free dependency graph: `dag` (needs `edges`); folder/package hierarchy: `tree`
-- lifecycle with states: `state-machine`; something everything touches: `hub`; separate services with cross-calls: `lanes`; call order: `sequence`
+- layered app (UI / API / DB): `pipeline` with `"orientation": "vertical"`, or the preset `stack` (there is no `stack` topology; `topology: "stack"` returns ERR_422); free dependency graph: `dag` (needs `edges`); folder/package hierarchy: `tree`
+- lifecycle with states: `state-machine`; something everything touches: `hub`; separate services with ownership rows: `lanes` (4 or more nodes, each with a `category`); call order: `sequence`
+- retry, review or improve cycle: `cycle` with `"orientation": "ring"` or `"orbit"`; a loop with exits: a `loop-*` preset; old versus new, or two options: `comparison`
 
-If no topology honestly fits, skip the diagram; a made-up flow misleads readers. Edges reference node ids (`n0`, `n1`, ...), not labels; for plain `pipeline`, `stack`, `fanout` omit `edges` and they are derived. Spell edges out only for `dag`, `sequence`, `state-machine`, `lanes`.
+Twelve topologies exist in total; the catalog has the rules and smallest working spec for each. When a custom spec fails, the error SVG states the reason in its text (for example `orientation 'horizontal' is not legal for cycle`); read it from the body and fix that field.
 
-Matrix: the label column is implicit. Declare only the non-label columns in `columns`, and give each row a `label` plus one cell per declared column (a "ชั้น / เทคโนโลยี / หน้าที่" table = `label` is the ชั้น, `columns` has two entries). Declaring the label column too fails with "expected N (one per non-label column)" via `hw_compose`, or ERR_422 via the URL. Try the spec once with `hw_compose` and `render_target: "markdown"` to check the shape cheaply. A cell is written `{"value": "..."}` (plain text kind). On Windows, native Python needs `D:/...` style paths; Git Bash `/d/...` paths fail inside Python. When the code is only stubs, label the diagram in the prose as the intended design, not as how it works today. Light and dark matrix faces came out byte-identical in one run, so look at both faces before relying on a `<picture>` pair; if they match, use a single face that works on both themes.
+If no topology honestly fits, skip the diagram; a made-up flow misleads readers. Edges reference node ids (`n0`, `n1`, ...), not labels; for plain `pipeline`, `fanout`, `fanin` omit `edges` and they are derived. Spell edges out for `dag`, `hub`, `tree`, `cycle`, `comparison`, `sequence`, `state-machine`, `lanes`.
+
+Matrix: the label column is implicit. Declare only the non-label columns in `columns`, each as an object with both `id` and `label` (a column without `id` fails with ERR_422 `matrix.columns.0.id Field required`), and give each row a `label` plus one cell per declared column (a "ชั้น / เทคโนโลยี / หน้าที่" table = `label` is the ชั้น, `columns` has two entries). Declaring the label column too fails with "expected N (one per non-label column)" via `hw_compose`, or ERR_422 via the URL. Try the spec once with `hw_compose` and `render_target: "markdown"` to check the shape cheaply. A cell is written `{"value": "..."}` (plain text kind). On Windows, native Python needs `D:/...` style paths; Git Bash `/d/...` paths fail inside Python. When the code is only stubs, label the diagram in the prose as the intended design, not as how it works today. Light and dark matrix faces came out byte-identical in one run, so look at both faces before relying on a `<picture>` pair; if they match, use a single face that works on both themes.
 
 Light/dark pair for README (GitHub switches by theme): build the same diagram twice with `face=light` and `face=dark`:
 
@@ -134,7 +143,7 @@ Hero for the chosen direction. The title must be a real markdown `# ` heading (t
 ย่อหน้าแนะนำ 2 ถึง 3 ประโยค: โปรเจกต์นี้คืออะไร ใช้กับใคร รับอะไรเข้า คืนอะไรออก
 ```
 
-**A 200 is not enough.** For unsupported combinations the public server returns HTTP 200 with an *error-state SVG* (seen with dividers: on `automata` only `dissolve` worked; on `brutalist`, `/v1/divider/block/brutalist.static` returned a "NO SIGNAL / ERR_404" error SVG with status 200 even though it looks like a valid URL; `primer` accepts `aura`). So for every URL, fetch the body and check it has none of `error-state` or `NO SIGNAL`, and does contain your expected text (a title or metric). One-liner: `curl -s URL | grep -c -E "error-state|NO SIGNAL"` should print `0`. If a divider errors, use the generic `/a/inneraura/dividers/<slug>` form or `primer`/`aura`. A status-only check (`curl -sI`) will pass broken images, so do not rely on it.
+**A 200 is not enough.** For unsupported combinations the public server returns HTTP 200 with an *error-state SVG* (seen with dividers: on `automata` only `dissolve` worked; on `brutalist`, `/v1/divider/block/brutalist.static` returned a "NO SIGNAL / ERR_404" error SVG with status 200 even though it looks like a valid URL; `primer` accepts `aura`). So for every URL, fetch the body and check it has none of `error-state` or `NO SIGNAL`, and does contain your expected text (a title or metric). One-liner: `curl -s URL | grep -c -E "error-state|NO SIGNAL"` should print `0`. If a divider errors, use the generic `/a/inneraura/dividers/<slug>` form or `primer`/`aura`. A status-only check (`curl -sI`) will pass broken images, so do not rely on it. Some mistakes render a normal image with no error: an unknown icon id, a profile card for a user that does not exist, a `data=` token for a package or repo that is missing (it shows `-`). Take owner, repo, package and icon names from the manifest and `git remote`, and open card, chart and icon images yourself.
 
 Diagrams and matrices fade in even when "static": a screenshot right after load looks washed out. Wait about 3 seconds before judging contrast. On Windows run Python with `PYTHONUTF8=1`, or printing Thai raises a cp874 error.
 
@@ -144,7 +153,7 @@ Diagrams and matrices fade in even when "static": a screenshot right after load 
 PYTHONUTF8=1 python <skill-dir>/scripts/check_images.py README.md
 ```
 
-Fix every `BAD` line and rerun until it reports 0 broken.
+Fix every `BAD` line (the `reason:` line under it quotes the server's own message) and rerun until it reports 0 broken. Each `CHECK` line is an image the script cannot judge (icon, profile card, star chart, live `data=` token): confirm the identifier against the manifest or `git remote`, open the image once, and make sure a live value is a real number, not `-`.
 
 **Then look at the images yourself** before you finish. Open at least the hero, one divider and the diagram: with the built-in browser (`navigate` to the URL, then `get_page_text`/screenshot) or `curl -sI URL` expecting `200`. Check contrast too: a light-face diagram can look washed out on a white page, in which case switch variant (try `cream`, `petrol` or `dusk` for light, `noir` for dark) and recheck. Two hero marquee quirks seen in testing: `items_total: 0` came back both with a pipe-separated title and with `data="text:..."`, so confirm the marquee shows text when you open it; if not, use a strip as the hero.
 
