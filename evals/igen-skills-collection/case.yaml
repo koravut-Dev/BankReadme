@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: igen-skills-collection
+expected_outcome: |
+  Standard-structure Thai README for a collection of 11 skills: catalog table of all skills, install command, first thing to try, troubleshooting, license, table of contents when long.

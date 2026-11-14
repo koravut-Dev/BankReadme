@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: shop-api-architecture
+expected_outcome: |
+  Thai README with hyperweave hero/badges/diagram matching Postgres+Redis+Stripe flow, real commands from package.json, env table from .env.example.
